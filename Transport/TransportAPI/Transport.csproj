@@ -57,6 +57,7 @@
     <Compile Include="Interface\IOperationsPublisher.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Protocol\Event.cs" />
+    <Compile Include="Protocol\EventPeers.cs" />
     <Compile Include="Protocol\EventPingRequest.cs" />
     <Compile Include="Protocol\Message.cs" />
     <Compile Include="Protocol\Operation.cs" />
