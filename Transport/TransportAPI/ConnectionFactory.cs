@@ -8,22 +8,22 @@ namespace MQCloud.Transport {
     public class ConnectionFactory : IConnectionFactory {
         private readonly ConcurrentDictionary<string, NetworkManager> _networkManagers=new ConcurrentDictionary<string, NetworkManager>();
 
-        public IConnection GetConnection(string address) {
+        public IConnection GetConnection(string peerAddress, string hostAddress="") {
             NetworkManager networkManager;
-            if (_networkManagers.TryGetValue(address, out networkManager)) {
+            if (_networkManagers.TryGetValue(hostAddress, out networkManager)) {
 
-            } else
-            {
-                if (String.IsNullOrEmpty(address) && address  != null) {
-                    var destination=IPAddress.Parse(address);
+            } else {
+                if (String.IsNullOrEmpty(hostAddress)&&hostAddress!=null) {
+                    var destination=IPAddress.Parse(hostAddress);
                     networkManager=new NetworkManager(destination);
                 } else {
                     networkManager=new NetworkManager();
 
                 }
-                if (address != null) _networkManagers.TryAdd(address, networkManager);
+                if (hostAddress!=null)
+                    _networkManagers.TryAdd(hostAddress, networkManager);
             }
-            return new Connection(networkManager);
+            return new Connection(networkManager, peerAddress);
         }
     }
 }

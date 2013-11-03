@@ -1,15 +1,20 @@
+using ProtoBuf;
+
 namespace MQCloud.Transport.Protocol {
+    [ProtoContract]
     enum OperationTypeCode {
         Default=0,
-        Request=1,
-        Response=2,
+        Request=50,
+        Response=51,
 
-        Pong=10,
+        GetBaseChannelsFacade = 100,
 
-        GetEventsPublisher=100,
-        GetOperationsPublisher=101,
+        Pong=151,
 
-        SetEventsPublisher=200,
-        SetOperationsPublisher=201
+        GetEventsPublisher=201,
+        GetOperationsPublisher=201,
+
+        SetEventsPublisher=300,
+        SetOperationsPublisher=301
     }
 }

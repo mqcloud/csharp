@@ -16,9 +16,9 @@ namespace TransportService {
 
         private static void Main() {
             try {
-                //  TestProtocol();
+                TestProtocol();
                 //  ZmqEventsTest.TestZmqEvents();
-                ZmqOperationsTest.TestZmqOperations();
+                //ZmqOperationsTest.TestZmqOperations();
             } catch (Exception e) {
                 Console.Write(e);
                 Console.ReadKey();

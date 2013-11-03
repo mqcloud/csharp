@@ -5,5 +5,9 @@ namespace MQCloud.Transport.Protocol {
     internal class OperationGetEventsPublisherResponse : OperationResponse {
         [ProtoMember(1)]
         public string Address { get; set; }
+
+        public OperationGetEventsPublisherResponse() {
+            TypeAttributes.Add((int)OperationTypeCode.GetEventsPublisher);
+        }
     }
 }

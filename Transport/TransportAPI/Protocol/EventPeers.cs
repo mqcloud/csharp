@@ -11,6 +11,8 @@ namespace MQCloud.Transport.Protocol {
         public List<string> Removed { get; set; }
 
         public EventPeers() {
+            TypeAttributes.Add((int)EventTypeCode.Peers);
+
             Added=new List<string>();
             Removed=new List<string>();
         }

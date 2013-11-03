@@ -50,7 +50,10 @@
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="Exceptions\IpNotFound.cs" />
     <Compile Include="Exceptions\TransportException.cs" />
+    <Compile Include="Implementation\Connection.cs" />
+    <Compile Include="Implementation\EventsPublisher.cs" />
     <Compile Include="Implementation\NetworkManager.cs" />
+    <Compile Include="Implementation\OperationsPublisher.cs" />
     <Compile Include="Interface\IConnection.cs" />
     <Compile Include="Interface\IConnectionFactory.cs" />
     <Compile Include="Interface\IEventsPublisher.cs" />
@@ -59,8 +62,12 @@
     <Compile Include="Protocol\Event.cs" />
     <Compile Include="Protocol\EventPeers.cs" />
     <Compile Include="Protocol\EventPingRequest.cs" />
+    <Compile Include="Protocol\EventTypeCode.cs" />
     <Compile Include="Protocol\Message.cs" />
+    <Compile Include="Protocol\MessageTypeCode.cs" />
     <Compile Include="Protocol\Operation.cs" />
+    <Compile Include="Protocol\OperationGetBaseChannelsFacadeRequest.cs" />
+    <Compile Include="Protocol\OperationGetBaseChannelsFacadeResponse.cs" />
     <Compile Include="Protocol\OperationGetEventsPublisherRequest.cs" />
     <Compile Include="Protocol\OperationGetEventsPublisherResponse.cs" />
     <Compile Include="Protocol\OperationGetOperationsPublisherRequest.cs" />
@@ -73,9 +80,6 @@
     <Compile Include="Protocol\OperationStatusCode.cs" />
     <Compile Include="Protocol\OperationTypeCode.cs" />
     <Compile Include="Protocol\Utilities\SchemaPrinter.cs" />
-    <Compile Include="Implementation\Connection.cs" />
-    <Compile Include="Implementation\EventsPublisher.cs" />
-    <Compile Include="Implementation\OperationsPublisher.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

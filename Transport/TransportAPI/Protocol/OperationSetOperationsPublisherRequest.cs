@@ -7,5 +7,9 @@ namespace MQCloud.Transport.Protocol {
         public string Address { get; set; }
         [ProtoMember(2)]
         public string Topic { get; set; }
+
+        public OperationSetOperationsPublisherRequest() {
+            TypeAttributes.Add((int)OperationTypeCode.SetOperationsPublisher);
+        }
     }
 }

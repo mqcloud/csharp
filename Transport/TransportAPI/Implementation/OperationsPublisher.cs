@@ -1,9 +1,5 @@
-#region
-
 using System;
 using MQCloud.Transport.Interface;
-
-#endregion
 
 namespace MQCloud.Transport.Implementation {
     internal class OperationsPublisher : IOperationsPublisher {

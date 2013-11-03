@@ -5,5 +5,9 @@ namespace MQCloud.Transport.Protocol {
     internal class OperationGetOperationsPublisherRequest : OperationRequest<OperationGetOperationsPublisherResponse> {
         [ProtoMember(1)]
         public string Topic { get; set; }
+
+        public OperationGetOperationsPublisherRequest() {
+            TypeAttributes.Add((int)OperationTypeCode.GetOperationsPublisher);
+        }
     }
 }

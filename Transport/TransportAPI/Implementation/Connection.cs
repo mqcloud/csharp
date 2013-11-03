@@ -8,9 +8,11 @@ using MQCloud.Transport.Interface;
 namespace MQCloud.Transport.Implementation {
     internal class Connection : IConnection {
         private NetworkManager Manager { get; set; }
+        private string PeerAddress { get; set; }
 
-        public Connection(NetworkManager manager) {
+        public Connection(NetworkManager manager, string peerAdress) {
             Manager=manager;
+            PeerAddress=peerAdress;
         }
 
         public void SubscribeToOperations(string topic, OperationCallback callback) {
