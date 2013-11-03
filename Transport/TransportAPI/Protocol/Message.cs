@@ -7,7 +7,7 @@ namespace MQCloud.Transport.Protocol {
     [ProtoInclude((int)MessageTypeCode.Event, typeof(Event))]
     internal class Message {
         [ProtoMember(1)]
-        public List<int> TypeAttributes { get; set; }
+        public List<int> TypeAttributes { get; protected set; } //TODO: check if protobuf-net ignores protected setters
         public Message() {
             TypeAttributes=new List<int>();
         }

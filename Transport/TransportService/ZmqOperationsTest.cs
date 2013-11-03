@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using ZeroMQ;
 
-namespace TransportService {
+namespace MQCloud.Transport.Service {
     internal class ZmqOperationsTest {
         public static void TestZmqOperations() {
             var context=ZmqContext.Create();
@@ -26,7 +25,7 @@ namespace TransportService {
 
             var poller=new Poller(new List<ZmqSocket> { client, serverA, serverB });
 
-            var timeout=new TimeSpan(0, 0, 1);
+            var timeout=new TimeSpan(0, 0, 5);
 
             while (true) {
                 poller.Poll(timeout);

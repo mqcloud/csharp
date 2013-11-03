@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using ZeroMQ;
 
-namespace TransportService {
+namespace MQCloud.Transport.Service {
     internal class ZmqEventsTest {
         private static int _sentCounter;
 

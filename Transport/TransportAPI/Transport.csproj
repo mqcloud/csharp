@@ -52,10 +52,17 @@
     <Compile Include="Exceptions\GatewayException.cs" />
     <Compile Include="Exceptions\IpNotFound.cs" />
     <Compile Include="Exceptions\TransportException.cs" />
+    <Compile Include="Extensions\Extensions.cs" />
+    <Compile Include="Implementation\AsyncOperationsManager.cs" />
     <Compile Include="Implementation\Connection.cs" />
     <Compile Include="Implementation\EventsPublisher.cs" />
     <Compile Include="Implementation\NetworkManager.cs" />
+    <Compile Include="Implementation\OperationPackageContext.cs" />
     <Compile Include="Implementation\OperationsPublisher.cs" />
+    <Compile Include="Implementation\PendingOperationContext.cs" />
+    <Compile Include="Implementation\ThematicMessage.cs" />
+    <Compile Include="Implementation\ThematicUserOperation.cs" />
+    <Compile Include="Informer.cs" />
     <Compile Include="Interface\IConnection.cs" />
     <Compile Include="Interface\IConnectionFactory.cs" />
     <Compile Include="Interface\IEventsPublisher.cs" />
@@ -81,7 +88,6 @@
     <Compile Include="Protocol\OperationSetOperationsPublisherRequest.cs" />
     <Compile Include="Protocol\OperationStatusCode.cs" />
     <Compile Include="Protocol\OperationTypeCode.cs" />
-    <Compile Include="Protocol\Utilities\Extensions.cs" />
     <Compile Include="Protocol\Utilities\SchemaPrinter.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

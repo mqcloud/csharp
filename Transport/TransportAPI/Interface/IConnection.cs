@@ -5,8 +5,8 @@ namespace MQCloud.Transport.Interface {
     public delegate void EventCallback(byte[] data);
 
     public interface IConnection {
-        void SubscribeToOperations(string topic, OperationCallback callback);
-        void SubscribeToEvents(string topic, EventCallback callback);
+        bool SubscribeToOperations(string topic, OperationCallback callback);
+        bool SubscribeToEvents(string topic, EventCallback callback);
 
         void UnSubscribeToOperations(string topic);
         void UnSubscribeToEvents(string topic);

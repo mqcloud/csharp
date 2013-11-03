@@ -1,82 +1,115 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using MQCloud.Transport.Exceptions;
+using MQCloud.Transport.Extensions;
 using MQCloud.Transport.Interface;
 using MQCloud.Transport.Protocol;
 using MQCloud.Transport.Protocol.Utilities;
 using ProtoBuf;
 using ZeroMQ;
+using System.Collections.Concurrent;
 
 namespace MQCloud.Transport.Implementation {
     internal class Connection : IConnection {
-        private NetworkManager Manager { get; set; }
+        private const string GatewayBaseDataTopic="B|"+Informer.Version;
+        private const string GatewayEventsTopic="E|"+Informer.Version;
+        private const string GatewayOperationsTopic="O|"+Informer.Version;
+
+        private NetworkManager NetworkManager { get; set; }
         private string PeerAddress { get; set; }
 
         private ZmqSocket GatewayConnection { get; set; }
-        private ZmqSocket EventsConnection { get; set; }
-        private ZmqSocket OperationsConnection { get; set; }
+        private ZmqSocket GatewayEventsListner { get; set; }
+        private ZmqSocket GatewayOperationsExchange { get; set; }
+
+        private ZmqSocket EventsPublisher { get; set; }
+        private ZmqSocket OperationsExchange { get; set; }
+
+
+        private readonly Poller _gatewayPoller=new Poller();
+
+        private readonly ConcurrentDictionary<string, OperationsPublisher> _operationsPublishers=new ConcurrentDictionary<string, OperationsPublisher>();
+        private readonly AsyncOperationsManager<OperationResponse> _asyncOperationsManager=new AsyncOperationsManager<OperationResponse>();
 
         private void Connect(string peerAdress) {
-            GatewayConnection=Manager.CreateSocket(SocketType.DEALER);
+            GatewayConnection=NetworkManager.CreateSocket(SocketType.DEALER);
             GatewayConnection.Connect(peerAdress);
 
-            GatewayConnection.ReceiveReady+=(sender, args) => OnGatewayResponse(sender, args, stream => {
-                var response=Serializer.Deserialize<OperationGetBaseChannelsFacadeResponse>(stream);
-                Connect(response);
-            });
+            GatewayConnection.ReceiveReady+=(sender, e) => {
+                var response=e.GetMessage<OperationGetBaseChannelsFacadeResponse>();
+                Connect(response.Message);
+            };
 
             var request=new OperationGetBaseChannelsFacadeRequest();
 
-            GatewayConnection.Send(request.ToByteArray());
+            GatewayConnection.Send(request, GatewayBaseDataTopic);
+            _gatewayPoller.AddSocket(GatewayConnection);
+            var timeout=new TimeSpan(0, 0, 10); // TODO: test;
 
-            var poller=new Poller(new List<ZmqSocket> { GatewayConnection });
-            var timeout=new TimeSpan(0, 0, 10); // TODO test;
+            _gatewayPoller.Poll(timeout);
 
-            poller.Poll(timeout);
-            if (EventsConnection==null||OperationsConnection==null) {
+            if (GatewayEventsListner==null||GatewayOperationsExchange==null) {
                 throw new ConnectionException(PeerAddress);
             }
+            _gatewayPoller.ClearSockets();
+            NetworkManager.FreeSocket(GatewayConnection);
 
+            GatewayOperationsExchange.ReceiveReady+=(sender, args) => {
+                var response=args.GetMessage<OperationResponse>().Message;
+                _asyncOperationsManager.ExecuteCallback(response.CallbackId, response);
+            };
 
-            poller.ClearSockets(); // TODO: check if needed
-            Manager.FreeSocket(GatewayConnection); // TODO: check if needed
+            GatewayEventsListner.ReceiveReady+=(sender, args) => {
+                var response=args.GetMessage<Event>().Message;
+                switch ((EventTypeCode)response.TypeAttributes[1]) { //TODO: add events handling
+                    case EventTypeCode.Peers:
+                    case EventTypeCode.Ping:
+
+                    default:
+                    break;
+                }
+            };
+            _gatewayPoller.AddSockets(new List<ZmqSocket> { GatewayOperationsExchange, GatewayEventsListner });
+            ThreadPool.QueueUserWorkItem(GatewayPooler);
         }
 
-        private static void OnGatewayResponse(object sender, SocketEventArgs e, Action<MemoryStream> callback) {
-            var result=e.Socket.ReceiveMessage();
-
-            var message=result.ToArray()
-                .SelectMany(frame => frame.Buffer)
-                .ToArray(); //TODO Search for better frame to byte array conversion
-
-            using (var ms=new MemoryStream(message)) {
-                callback(ms);
+        private void GatewayPooler(object state) {
+            var timeout=new TimeSpan(0, 0, 1); // TODO: test;
+            while (_gatewayPoller!=null) //TODO: handle loop exit
+            {
+                _gatewayPoller.Poll(timeout);
             }
         }
 
         private void Connect(OperationGetBaseChannelsFacadeResponse context) {
-            EventsConnection=Manager.CreateSocket(SocketType.XSUB);
-            EventsConnection.Connect(context.EventsAddress);
+            GatewayEventsListner=NetworkManager.CreateSocket(SocketType.XSUB);
+            context.EventTopics.ForEach(s => GatewayEventsListner.Subscribe(s.ToByteArray()));
+            GatewayEventsListner.Connect(context.EventsAddress);
 
-            OperationsConnection=Manager.CreateSocket(SocketType.DEALER);
-            OperationsConnection.Connect(context.OperationsAddress);
+            GatewayOperationsExchange=NetworkManager.CreateSocket(SocketType.DEALER);
+            GatewayOperationsExchange.Connect(context.OperationsAddress);
+
+            EventsPublisher=NetworkManager.CreateSocket(SocketType.XPUB);
+            NetworkManager.OpenSocket(EventsPublisher);
+
+            OperationsExchange=NetworkManager.CreateSocket(SocketType.ROUTER);
+            NetworkManager.OpenSocket(OperationsExchange);
         }
 
         public Connection(NetworkManager manager, string peerAdress) {
-            Manager=manager;
+            NetworkManager=manager;
             PeerAddress=peerAdress;
 
             Connect(peerAdress);
         }
 
-        public void SubscribeToOperations(string topic, OperationCallback callback) {
+        public bool SubscribeToOperations(string topic, OperationCallback callback) {
             throw new NotImplementedException();
         }
 
-        public void SubscribeToEvents(string topic, EventCallback callback) {
+        public bool SubscribeToEvents(string topic, EventCallback callback) {
             throw new NotImplementedException();
         }
 
@@ -89,7 +122,21 @@ namespace MQCloud.Transport.Implementation {
         }
 
         public IOperationsPublisher GetOperationsPublisher(string topic) {
-            return new OperationsPublisher();
+            OperationsPublisher result;
+            if (!_operationsPublishers.TryAdd(topic, null)) {
+                _operationsPublishers.TryGetValue(topic, out result);
+            } else {
+                result=new OperationsPublisher(topic, NetworkManager);
+                var request=new OperationGetOperationsPublisherRequest {
+                    Topic=topic,
+                    CallbackId=_asyncOperationsManager.RegisterAsyncOperation(
+                        response => result.SubscriobeToOperationsCallback(
+                            (OperationGetOperationsPublisherResponse)response))
+                };
+                GatewayOperationsExchange.Send(request, GatewayOperationsTopic);
+                _operationsPublishers.TryUpdate(topic, result, null);
+            }
+            return result;
         }
 
         public IEventsPublisher GetEventsPublisher(string topic) {

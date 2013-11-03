@@ -6,7 +6,7 @@ using MQCloud.Transport.Protocol.Utilities;
 
 #endregion
 
-namespace TransportService {
+namespace MQCloud.Transport.Service {
     internal class Program {
         private static void TestProtocol() {
             var schema=SchemaPrinter.Print();
@@ -14,11 +14,11 @@ namespace TransportService {
             File.WriteAllText("TransportProtocol.proto", schema);
         }
 
-        private static void Main() {
+        public static void Main() {
             try {
                 TestProtocol();
                 //  ZmqEventsTest.TestZmqEvents();
-                //ZmqOperationsTest.TestZmqOperations();
+                ZmqOperationsTest.TestZmqOperations();
             } catch (Exception e) {
                 Console.Write(e);
                 Console.ReadKey();

@@ -1,6 +1,8 @@
-﻿using System.Text;
+﻿using MQCloud.Transport.Protocol;
+using System.Text;
 
-namespace TransportService {
+namespace MQCloud.Transport.Service
+{
     public static class Extensions {
         public static byte[] ToByteArray(this string data) {
             return Encoding.UTF8.GetBytes(data);
