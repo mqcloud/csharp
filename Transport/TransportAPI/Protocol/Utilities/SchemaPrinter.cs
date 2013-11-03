@@ -34,9 +34,9 @@ namespace MQCloud.Transport.Protocol.Utilities {
                 var enumName=names.ElementAt(1).Value;
 
                 newmatch=names.Skip(2)
-                    .Aggregate(newmatch, (current, pair) 
+                    .Aggregate(newmatch, (current, pair)
                         => Regex.Replace(current,
-                        @"(?<=\s)"+names[pair.Key]+@"(?=\s)", 
+                        @"(?<=\s)"+names[pair.Key]+@"(?=\s)",
                         enumName+names[pair.Key]));
 
                 result=result.Replace(match.Value, newmatch);

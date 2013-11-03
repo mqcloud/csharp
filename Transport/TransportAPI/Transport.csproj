@@ -48,6 +48,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConnectionFactory.cs" />
+    <Compile Include="Exceptions\ConnectionException.cs" />
+    <Compile Include="Exceptions\GatewayException.cs" />
     <Compile Include="Exceptions\IpNotFound.cs" />
     <Compile Include="Exceptions\TransportException.cs" />
     <Compile Include="Implementation\Connection.cs" />
@@ -79,6 +81,7 @@
     <Compile Include="Protocol\OperationSetOperationsPublisherRequest.cs" />
     <Compile Include="Protocol\OperationStatusCode.cs" />
     <Compile Include="Protocol\OperationTypeCode.cs" />
+    <Compile Include="Protocol\Utilities\Extensions.cs" />
     <Compile Include="Protocol\Utilities\SchemaPrinter.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
