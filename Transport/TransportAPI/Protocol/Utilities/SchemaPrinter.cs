@@ -10,25 +10,43 @@ namespace MQCloud.Transport.Protocol.Utilities {
         private static readonly RuntimeTypeModel Model=RuntimeTypeModel.Default;
 
         private static List<Type> GetTypes() {
-            var result=new List<Type>();
             var assembly=Assembly.GetAssembly(typeof(Message));
             var types=assembly.GetTypes();
-            foreach (var t in types) {
-                var attrs=System.Attribute.GetCustomAttributes(t);
-                if (attrs.Any(a => a is ProtoBuf.ProtoContractAttribute)) {
-                    result.Add(t);
-                }
-            }
-            return result;
+            return (from t in types let attrs=System.Attribute.GetCustomAttributes(t) where attrs.Any(a => a is ProtoBuf.ProtoContractAttribute) select t).ToList();
         }
 
         private static string PrepareSchema(string schema) {
             var result=schema;
+
             var matches=Regex.Matches(result, @"message\s+\w+_\w+\s+\{[^}]*\}", RegexOptions.Singleline);
-            return matches
-                .Cast<Match>()
+            result=matches.Cast<Match>()
                 .Aggregate(result, (current, match)
                     => current.Replace(match.Value, ""));
+
+
+            matches=Regex.Matches(result, @"enum\s+\w+\s+\{[^}]*\}", RegexOptions.Singleline);
+            foreach (Match match in matches) {
+                var newmatch=match.Value;
+                var names=Regex.Matches(newmatch, @"[a-zA-Z]\w+", RegexOptions.Multiline)
+                    .Cast<Match>()
+                    .Select(match1 => match1.Value)
+                    .ToDictionary(s => s, s => s);
+                var enumName=names.ElementAt(1).Value;
+
+                newmatch=names.Skip(2)
+                    .Aggregate(newmatch, (current, pair) 
+                        => Regex.Replace(current,
+                        @"(?<=\s)"+names[pair.Key]+@"(?=\s)", 
+                        enumName+names[pair.Key]));
+
+                result=result.Replace(match.Value, newmatch);
+
+                result=Regex.Replace(result,
+                    string.Format(@"(?<=(.*\s+{0}.*\[default\s+=\s+))(?<name1>\w+)", enumName),
+                    enumName+"${name1}");
+            }
+
+            return result;
         }
 
         public static string Print() {
