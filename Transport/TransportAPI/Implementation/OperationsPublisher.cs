@@ -11,7 +11,6 @@ namespace MQCloud.Transport.Implementation {
     internal class OperationsPublisher : IOperationsPublisher {
         private readonly string _topic;
         private readonly string _senderId;
-        private ZmqSocket _socket;
         private readonly NetworkManager _networkManager;
         private readonly List<OperationPackageContext> _packets=new List<OperationPackageContext>();
         private readonly List<PendingOperationContext> _pendingOperations=new List<PendingOperationContext>();
@@ -20,6 +19,7 @@ namespace MQCloud.Transport.Implementation {
         private Timer RemoveOutOfDateOperaqtionsTimer { get; set; }
 
         private Poller _poller;
+        private ZmqSocket _socket;
 
         private void OnResponse(object sender, SocketEventArgs e) {
             lock (_packets) {
@@ -35,7 +35,7 @@ namespace MQCloud.Transport.Implementation {
                                 _senderId,
                                 callbackId
                             );
-                            
+
                             var outDate=DateTime.UtcNow+packageContext.Timeout;
 
                             _pendingOperations.Add(new PendingOperationContext {
@@ -81,7 +81,7 @@ namespace MQCloud.Transport.Implementation {
                 // TODO: handle exceptional case
                 return;
             }
-            _socket = _networkManager.CreateSocket(SocketType.DEALER);
+            _socket=_networkManager.CreateSocket(SocketType.DEALER);
             context.Addresses.ForEach(_socket.Connect); //TODO: make connections updatable
 
             _socket.SendReady+=OnResponse;
@@ -92,8 +92,7 @@ namespace MQCloud.Transport.Implementation {
             ThreadPool.QueueUserWorkItem(state => PoolerLoop());
         }
 
-        public void UpdateSubscriptions(EventPeers context) // TODO: check if threadsafe
-        {
+        public void UpdateSubscriptions(EventPeers context) { // TODO: check if threadsafe
             context.Added.ForEach(_socket.Connect);
             context.Removed.ForEach(_socket.Disconnect);
         }
@@ -101,7 +100,7 @@ namespace MQCloud.Transport.Implementation {
         public OperationsPublisher(string topic, string senderId, NetworkManager networkManager) {
             _topic=topic;
             _networkManager=networkManager;
-            _senderId = senderId;
+            _senderId=senderId;
             RemoveOutOfDateOperaqtionsTimer=new Timer(state => CleanUpLoop(), null, Informer.MinimalMessageTimeToLive, Informer.MinimalMessageTimeToLive);
         }
 

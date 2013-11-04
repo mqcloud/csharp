@@ -61,6 +61,7 @@
     <Compile Include="Implementation\AsyncOperationsManager.cs" />
     <Compile Include="Implementation\Connection.cs" />
     <Compile Include="Implementation\EventsPublisher.cs" />
+    <Compile Include="Implementation\EventsSubscriptionController.cs" />
     <Compile Include="Implementation\NetworkManager.cs" />
     <Compile Include="Implementation\OperationPackageContext.cs" />
     <Compile Include="Implementation\OperationsPublisher.cs" />

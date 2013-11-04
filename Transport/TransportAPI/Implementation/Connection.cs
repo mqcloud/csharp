@@ -32,6 +32,7 @@ namespace MQCloud.Transport.Implementation {
         private readonly ConcurrentDictionary<string, OperationsPublisher> _operationsPublishers=new ConcurrentDictionary<string, OperationsPublisher>();
         private readonly ConcurrentDictionary<string, EventsPublisher> _eventsPublishers=new ConcurrentDictionary<string, EventsPublisher>();
         private readonly ConcurrentDictionary<string, OperationCallback> _operationSubscribers=new ConcurrentDictionary<string, OperationCallback>();
+        private readonly ConcurrentDictionary<string, EventsSubscriptionController> _eventSubscribers=new ConcurrentDictionary<string, EventsSubscriptionController>();
 
         private readonly AsyncOperationsManager<OperationResponse> _asyncOperationsManager=new AsyncOperationsManager<OperationResponse>();
 
@@ -139,7 +140,11 @@ namespace MQCloud.Transport.Implementation {
                             publisher.UpdateSubscriptions((EventPeers)message);
                         }
                     } else if (response.Topic.StartsWith(GatewayEventsTopic)) {
-                        //TODO: handle
+                        var eventTopic=response.Topic.Replace(GatewayEventsTopic, ""); // TODO : replace only first appearence
+                        EventsSubscriptionController publisher;
+                        if (_eventSubscribers.TryGetValue(eventTopic, out publisher)) {
+                            publisher.UpdateSubscriptions((EventPeers)message);
+                        }
                     }
                     break;
                 }
@@ -172,16 +177,40 @@ namespace MQCloud.Transport.Implementation {
         }
 
         public bool SubscribeToEvents(string topic, EventCallback callback) {
-            throw new NotImplementedException();
+            if (!_eventSubscribers.TryAdd(topic, null)) {
+                return false;
+            }
+
+            var controller=new EventsSubscriptionController(callback, NetworkManager, topic);
+
+            var request=new OperationGetEventsPublisherRequest {
+                Topic=topic
+            };
+            var callbackId=_asyncOperationsManager.RegisterAsyncOperation(
+                response => {
+                    controller.SubscriobeToEventsCallback(
+                        (OperationGetEventsPublisherResponse)response);
+                    var infoTopic=GatewayEventsTopic+topic;
+                    GatewayEventsListner.Subscribe(infoTopic.ToByteArray()); // TODO: handle subscription latency issues
+                });
+
+            GatewayOperationsExchange.SendProtocolOperationRequest(
+                request,
+                GatewayOperationsTopic,
+                Id,
+                callbackId);
+
+            return _eventSubscribers.TryUpdate(topic, controller, null);
         }
 
         public bool UnSubscribeFromOperations(string topic) {
             OperationCallback callback;
-            return _operationSubscribers.TryRemove(topic, out callback);
+            return _operationSubscribers.TryRemove(topic, out callback); // TODO : check if socket dispose is needed!
         }
 
         public bool UnSubscribeFromEvents(string topic) {
-            throw new NotImplementedException();
+            EventsSubscriptionController callback;
+            return _eventSubscribers.TryRemove(topic, out callback);
         }
 
         public IOperationsPublisher GetOperationsPublisher(string topic) {
