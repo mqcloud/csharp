@@ -90,13 +90,13 @@
     <Compile Include="Protocol\OperationGetBaseChannelsFacadeResponse.cs" />
     <Compile Include="Protocol\OperationGetEventsPublisherRequest.cs" />
     <Compile Include="Protocol\OperationGetEventsPublisherResponse.cs" />
-    <Compile Include="Protocol\OperationGetOperationsPublisherRequest.cs" />
-    <Compile Include="Protocol\OperationGetOperationsPublisherResponse.cs" />
+    <Compile Include="Protocol\OperationGetOperationsSubscribersRequest.cs" />
+    <Compile Include="Protocol\OperationGetOperationsSubscribersResponse.cs" />
     <Compile Include="Protocol\OperationPongRequest.cs" />
     <Compile Include="Protocol\OperationRequest.cs" />
     <Compile Include="Protocol\OperationResponse.cs" />
     <Compile Include="Protocol\OperationSetEventsPublisherRequest.cs" />
-    <Compile Include="Protocol\OperationSetOperationsPublisherRequest.cs" />
+    <Compile Include="Protocol\OperationSetOperationsSubscriberRequest.cs" />
     <Compile Include="Protocol\OperationStatusCode.cs" />
     <Compile Include="Protocol\OperationTypeCode.cs" />
     <Compile Include="Protocol\Utilities\SchemaPrinter.cs" />

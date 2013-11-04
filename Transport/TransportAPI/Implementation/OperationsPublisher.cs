@@ -76,7 +76,7 @@ namespace MQCloud.Transport.Implementation {
             }
         }
 
-        public void SubscriobeToOperationsCallback(OperationGetOperationsPublisherResponse context) {
+        public void SubscriobeToOperationsCallback(OperationGetOperationsSubscribersResponse context) {
             if (context.State==OperationStatusCode.OperationStatusCodeError) {
                 // TODO: handle exceptional case
                 return;

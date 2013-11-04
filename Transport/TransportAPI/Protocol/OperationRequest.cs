@@ -7,10 +7,10 @@ namespace MQCloud.Transport.Protocol {
     [ProtoInclude((int)OperationTypeCode.Pong, typeof(OperationPongRequest))]
 
     [ProtoInclude((int)OperationTypeCode.GetEventsPublisher, typeof(OperationGetEventsPublisherRequest))]
-    [ProtoInclude((int)OperationTypeCode.GetOperationsPublisher, typeof(OperationGetOperationsPublisherRequest))]
+    [ProtoInclude((int)OperationTypeCode.GetOperationsSubscribers, typeof(OperationGetOperationsSubscribersRequest))]
 
     [ProtoInclude((int)OperationTypeCode.SetEventsPublisher, typeof(OperationSetEventsPublisherRequest))]
-    [ProtoInclude((int)OperationTypeCode.SetOperationsPublisher, typeof(OperationSetOperationsPublisherRequest))]
+    [ProtoInclude((int)OperationTypeCode.SetOperationsSubscriber, typeof(OperationSetOperationsSubscriberRequest))]
     internal class OperationRequest : Operation {
         public OperationRequest() {
             TypeAttributes.Add((int)OperationTypeCode.Request);

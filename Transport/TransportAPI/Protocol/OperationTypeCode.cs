@@ -12,9 +12,9 @@ namespace MQCloud.Transport.Protocol {
         Pong=151,
 
         GetEventsPublisher=201,
-        GetOperationsPublisher=201,
+        GetOperationsSubscribers=201,
 
         SetEventsPublisher=300,
-        SetOperationsPublisher=301
+        SetOperationsSubscriber=301
     }
 }

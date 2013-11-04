@@ -4,7 +4,7 @@ namespace MQCloud.Transport.Protocol {
 
     [ProtoContract]
     [ProtoInclude((int)OperationTypeCode.GetEventsPublisher, typeof(OperationGetEventsPublisherResponse))]
-    [ProtoInclude((int)OperationTypeCode.GetOperationsPublisher, typeof(OperationGetOperationsPublisherResponse))]
+    [ProtoInclude((int)OperationTypeCode.GetOperationsSubscribers, typeof(OperationGetOperationsSubscribersResponse))]
     [ProtoInclude((int)OperationTypeCode.GetBaseChannelsFacade, typeof(OperationGetBaseChannelsFacadeResponse))]
     internal class OperationResponse : Operation {
         [ProtoMember(1)]

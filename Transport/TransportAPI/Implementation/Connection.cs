@@ -172,6 +172,12 @@ namespace MQCloud.Transport.Implementation {
             if (!_operationSubscribers.TryAdd(topic, null)) {
                 return false;
             }
+            var request=new OperationSetOperationsSubscriberRequest {
+                Topic=topic
+            };
+            var callbackId=_asyncOperationsManager.RegisterAsyncOperation(
+                response => { });
+            GatewayOperationsExchange.SendProtocolOperationRequest(request, GatewayOperationsTopic, Id, callbackId);
 
             return _operationSubscribers.TryUpdate(topic, callback, null);
         }
@@ -219,13 +225,13 @@ namespace MQCloud.Transport.Implementation {
                 _operationsPublishers.TryGetValue(topic, out result);
             } else {
                 result=new OperationsPublisher(topic, Id, NetworkManager);
-                var request=new OperationGetOperationsPublisherRequest {
+                var request=new OperationGetOperationsSubscribersRequest {
                     Topic=topic
                 };
                 var callbackId=_asyncOperationsManager.RegisterAsyncOperation(
                     response => {
                         result.SubscriobeToOperationsCallback(
-                            (OperationGetOperationsPublisherResponse)response);
+                            (OperationGetOperationsSubscribersResponse)response);
                         var infoTopic=GatewayOperationsTopic+topic;
                         GatewayEventsListner.Subscribe(infoTopic.ToByteArray()); // TODO: handle subscription latency issues
                     });
