@@ -27,10 +27,15 @@ namespace MQCloud.Transport.Implementation {
         private ZmqSocket EventsPublisher { get; set; }
         private ZmqSocket OperationsExchange { get; set; }
 
+        private string Id { get; set; }
 
         private readonly Poller _gatewayPoller=new Poller();
+        private readonly Poller _connectionPoller=new Poller();
 
         private readonly ConcurrentDictionary<string, OperationsPublisher> _operationsPublishers=new ConcurrentDictionary<string, OperationsPublisher>();
+        private readonly ConcurrentDictionary<string, EventsPublisher> _eventsPublishers=new ConcurrentDictionary<string, EventsPublisher>();
+        private readonly ConcurrentDictionary<string, OperationCallback> _operationSubscribers=new ConcurrentDictionary<string, OperationCallback>();
+
         private readonly AsyncOperationsManager<OperationResponse> _asyncOperationsManager=new AsyncOperationsManager<OperationResponse>();
 
         private void Connect(string peerAdress) {
@@ -38,13 +43,13 @@ namespace MQCloud.Transport.Implementation {
             GatewayConnection.Connect(peerAdress);
 
             GatewayConnection.ReceiveReady+=(sender, e) => {
-                var response=e.GetMessage<OperationGetBaseChannelsFacadeResponse>();
+                var response=e.GetProtocolOperationResponse<OperationGetBaseChannelsFacadeResponse>();
                 Connect(response.Message);
             };
 
             var request=new OperationGetBaseChannelsFacadeRequest();
 
-            GatewayConnection.Send(request, GatewayBaseDataTopic);
+            GatewayConnection.SendProtocolOperationRequest(request, GatewayBaseDataTopic, Id, 0);
             _gatewayPoller.AddSocket(GatewayConnection);
             var timeout=new TimeSpan(0, 0, 10); // TODO: test;
 
@@ -55,24 +60,6 @@ namespace MQCloud.Transport.Implementation {
             }
             _gatewayPoller.ClearSockets();
             NetworkManager.FreeSocket(GatewayConnection);
-
-            GatewayOperationsExchange.ReceiveReady+=(sender, args) => {
-                var response=args.GetMessage<OperationResponse>().Message;
-                _asyncOperationsManager.ExecuteCallback(response.CallbackId, response);
-            };
-
-            GatewayEventsListner.ReceiveReady+=(sender, args) => {
-                var response=args.GetMessage<Event>().Message;
-                switch ((EventTypeCode)response.TypeAttributes[1]) { //TODO: add events handling
-                    case EventTypeCode.Peers:
-                    case EventTypeCode.Ping:
-
-                    default:
-                    break;
-                }
-            };
-            _gatewayPoller.AddSockets(new List<ZmqSocket> { GatewayOperationsExchange, GatewayEventsListner });
-            ThreadPool.QueueUserWorkItem(GatewayPooler);
         }
 
         private void GatewayPooler(object state) {
@@ -83,7 +70,17 @@ namespace MQCloud.Transport.Implementation {
             }
         }
 
+        private void ConnectionPoller(object state) {
+            var timeout=new TimeSpan(0, 0, 1); // TODO: test;
+            while (_connectionPoller!=null) //TODO: handle loop exit
+            {
+                _connectionPoller.Poll(timeout);
+            }
+        }
+
         private void Connect(OperationGetBaseChannelsFacadeResponse context) {
+            Id=context.UserId;
+
             GatewayEventsListner=NetworkManager.CreateSocket(SocketType.XSUB);
             context.EventTopics.ForEach(s => GatewayEventsListner.Subscribe(s.ToByteArray()));
             GatewayEventsListner.Connect(context.EventsAddress);
@@ -91,33 +88,85 @@ namespace MQCloud.Transport.Implementation {
             GatewayOperationsExchange=NetworkManager.CreateSocket(SocketType.DEALER);
             GatewayOperationsExchange.Connect(context.OperationsAddress);
 
+
+            GatewayOperationsExchange.ReceiveReady+=OnGatewayOperationsExchangeOnReceiveReady;
+
+            GatewayEventsListner.ReceiveReady+=OnGatewayEventsListnerOnReceiveReady;
+
+            _gatewayPoller.AddSockets(new List<ZmqSocket> { GatewayOperationsExchange, GatewayEventsListner });
+            ThreadPool.QueueUserWorkItem(GatewayPooler);
+
             EventsPublisher=NetworkManager.CreateSocket(SocketType.XPUB);
+            EventsPublisher.SendReady+=(sender, args) => _eventsPublishers.ForEach(pair => {
+                lock (pair.Value._packets) {
+                    pair.Value._packets.ForEach(bytes => EventsPublisher.SendUserEvent(bytes, pair.Key));
+                }
+            });
             NetworkManager.OpenSocket(EventsPublisher);
 
+
             OperationsExchange=NetworkManager.CreateSocket(SocketType.ROUTER);
+            OperationsExchange.ReceiveReady+=(sender, args) => {
+                var message=args.GetUserOperationRequest();
+                OperationCallback callback;
+                if (_operationSubscribers.TryGetValue(message.Topic, out callback)) {
+                    callback(message.Message,
+                             response => OperationsExchange.SendUserOperationResponse(
+                                 response,
+                                 message.Topic,
+                                 message.SenderId,
+                                 message.CallbackId));
+                }
+
+            };
+
             NetworkManager.OpenSocket(OperationsExchange);
+
+            _connectionPoller.AddSockets(new List<ZmqSocket> { EventsPublisher, OperationsExchange });
+            ThreadPool.QueueUserWorkItem(ConnectionPoller);
+        }
+
+        private void OnGatewayOperationsExchangeOnReceiveReady(object sender, SocketEventArgs args) {
+            var response=args.GetProtocolOperationResponse<OperationResponse>().Message;
+            _asyncOperationsManager.ExecuteCallback(response.CallbackId, response);
+        }
+
+        private void OnGatewayEventsListnerOnReceiveReady(object sender, SocketEventArgs args) {
+            var response=args.GetProtocolEvent<Event>().Message;
+            switch ((EventTypeCode)response.TypeAttributes[1]) {
+                //TODO: add events handling
+                case EventTypeCode.Peers:
+                case EventTypeCode.Ping:
+
+                default:
+                break;
+            }
         }
 
         public Connection(NetworkManager manager, string peerAdress) {
             NetworkManager=manager;
             PeerAddress=peerAdress;
-
+            Id=Guid.NewGuid().ToString();
             Connect(peerAdress);
         }
 
         public bool SubscribeToOperations(string topic, OperationCallback callback) {
-            throw new NotImplementedException();
+            if (!_operationSubscribers.TryAdd(topic, null)) {
+                return false;
+            }
+
+            return _operationSubscribers.TryUpdate(topic, callback, null);
         }
 
         public bool SubscribeToEvents(string topic, EventCallback callback) {
             throw new NotImplementedException();
         }
 
-        public void UnSubscribeToOperations(string topic) {
+        public void UnSubscribeFromOperations(string topic) {
             throw new NotImplementedException();
         }
 
-        public void UnSubscribeToEvents(string topic) {
+        public void UnSubscribeFromEvents(string topic) {
             throw new NotImplementedException();
         }
 
@@ -126,21 +175,35 @@ namespace MQCloud.Transport.Implementation {
             if (!_operationsPublishers.TryAdd(topic, null)) {
                 _operationsPublishers.TryGetValue(topic, out result);
             } else {
-                result=new OperationsPublisher(topic, NetworkManager);
+                result=new OperationsPublisher(topic, Id, NetworkManager);
                 var request=new OperationGetOperationsPublisherRequest {
                     Topic=topic,
                     CallbackId=_asyncOperationsManager.RegisterAsyncOperation(
                         response => result.SubscriobeToOperationsCallback(
                             (OperationGetOperationsPublisherResponse)response))
                 };
-                GatewayOperationsExchange.Send(request, GatewayOperationsTopic);
+                GatewayOperationsExchange.SendProtocolOperationRequest(request, GatewayOperationsTopic, Id, request.CallbackId);
                 _operationsPublishers.TryUpdate(topic, result, null);
             }
             return result;
         }
 
         public IEventsPublisher GetEventsPublisher(string topic) {
-            return new EventsPublisher();
+
+            EventsPublisher result;
+            if (!_eventsPublishers.TryAdd(topic, null)) {
+                _eventsPublishers.TryGetValue(topic, out result);
+            } else {
+                result=new EventsPublisher(EventsPublisher, topic);
+                var request=new OperationSetEventsPublisherRequest {
+                    Topic=topic,
+                    CallbackId=_asyncOperationsManager.RegisterAsyncOperation(
+                        response => { })
+                };
+                GatewayOperationsExchange.SendProtocolOperationRequest(request, GatewayOperationsTopic, Id, request.CallbackId);
+                _eventsPublishers.TryUpdate(topic, result, null);
+            }
+            return result;
         }
     }
 }

@@ -10,6 +10,8 @@ using ZeroMQ;
 namespace MQCloud.Transport.Implementation {
     internal class OperationsPublisher : IOperationsPublisher {
         private readonly string _topic;
+        private readonly string _senderId;
+
         private readonly NetworkManager _networkManager;
         private readonly List<OperationPackageContext> _packets=new List<OperationPackageContext>();
         private readonly List<PendingOperationContext> _pendingOperations=new List<PendingOperationContext>();
@@ -27,12 +29,13 @@ namespace MQCloud.Transport.Implementation {
                             var callbackId=_asyncOperationsManager.RegisterAsyncOperation(
                                 operationResponse => packageContext.OnResult(operationResponse));
 
-                            e.Socket.SendOperation(
+                            e.Socket.SendUserOperationRequest(
                                 packageContext.Data,
                                 _topic,
+                                _senderId,
                                 callbackId
-                                );
-
+                            );
+                            
                             var outDate=DateTime.UtcNow+packageContext.Timeout;
 
                             _pendingOperations.Add(new PendingOperationContext {
@@ -47,7 +50,7 @@ namespace MQCloud.Transport.Implementation {
         }
 
         private void OnRequest(object sender, SocketEventArgs e) {
-            var operation=e.GetOperation();
+            var operation=e.GetUserOperationRequest();
             _asyncOperationsManager.ExecuteCallback(operation.CallbackId, operation.Message);
         }
 
@@ -79,7 +82,7 @@ namespace MQCloud.Transport.Implementation {
                 return;
             }
             var socket=_networkManager.CreateSocket(SocketType.DEALER);
-            context.Addresses.ForEach(socket.Connect);
+            context.Addresses.ForEach(socket.Connect); //TODO: make connections updatable
 
             socket.SendReady+=OnResponse;
             socket.ReceiveReady+=OnRequest;
@@ -89,7 +92,7 @@ namespace MQCloud.Transport.Implementation {
             ThreadPool.QueueUserWorkItem(state => PoolerLoop());
         }
 
-        public OperationsPublisher(string topic, NetworkManager networkManager) {
+        public OperationsPublisher(string topic, string _senderId, NetworkManager networkManager) {
             _topic=topic;
             _networkManager=networkManager;
             RemoveOutOfDateOperaqtionsTimer=new Timer(state => CleanUpLoop(), null, Informer.MinimalMessageTimeToLive, Informer.MinimalMessageTimeToLive);

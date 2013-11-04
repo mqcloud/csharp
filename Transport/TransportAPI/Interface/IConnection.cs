@@ -8,8 +8,8 @@ namespace MQCloud.Transport.Interface {
         bool SubscribeToOperations(string topic, OperationCallback callback);
         bool SubscribeToEvents(string topic, EventCallback callback);
 
-        void UnSubscribeToOperations(string topic);
-        void UnSubscribeToEvents(string topic);
+        void UnSubscribeFromOperations(string topic);
+        void UnSubscribeFromEvents(string topic);
 
         IOperationsPublisher GetOperationsPublisher(string topic);
         IEventsPublisher GetEventsPublisher(string topic);
