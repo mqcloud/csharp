@@ -1,21 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using MQCloud.Transport.Exceptions;
 using MQCloud.Transport.Extensions;
 using MQCloud.Transport.Interface;
 using MQCloud.Transport.Protocol;
-using MQCloud.Transport.Protocol.Utilities;
-using ProtoBuf;
 using ZeroMQ;
 using System.Collections.Concurrent;
 
 namespace MQCloud.Transport.Implementation {
     internal class Connection : IConnection {
-        private const string GatewayBaseDataTopic="B|"+Informer.Version;
-        private const string GatewayEventsTopic="E|"+Informer.Version;
-        private const string GatewayOperationsTopic="O|"+Informer.Version;
+        private const string GatewayBaseDataTopic="B|"+Informer.Version+"|";
+        private const string GatewayEventsTopic="E|"+Informer.Version+"|";
+        private const string GatewayOperationsTopic="O|"+Informer.Version+"|";
 
         private NetworkManager NetworkManager { get; set; }
         private string PeerAddress { get; set; }
@@ -88,7 +85,6 @@ namespace MQCloud.Transport.Implementation {
             GatewayOperationsExchange=NetworkManager.CreateSocket(SocketType.DEALER);
             GatewayOperationsExchange.Connect(context.OperationsAddress);
 
-
             GatewayOperationsExchange.ReceiveReady+=OnGatewayOperationsExchangeOnReceiveReady;
 
             GatewayEventsListner.ReceiveReady+=OnGatewayEventsListnerOnReceiveReady;
@@ -98,12 +94,11 @@ namespace MQCloud.Transport.Implementation {
 
             EventsPublisher=NetworkManager.CreateSocket(SocketType.XPUB);
             EventsPublisher.SendReady+=(sender, args) => _eventsPublishers.ForEach(pair => {
-                lock (pair.Value._packets) {
-                    pair.Value._packets.ForEach(bytes => EventsPublisher.SendUserEvent(bytes, pair.Key));
+                lock (pair.Value.Packets) {
+                    pair.Value.Packets.ForEach(bytes => EventsPublisher.SendUserEvent(bytes, pair.Key));
                 }
             });
             NetworkManager.OpenSocket(EventsPublisher);
-
 
             OperationsExchange=NetworkManager.CreateSocket(SocketType.ROUTER);
             OperationsExchange.ReceiveReady+=(sender, args) => {
@@ -127,19 +122,37 @@ namespace MQCloud.Transport.Implementation {
         }
 
         private void OnGatewayOperationsExchangeOnReceiveReady(object sender, SocketEventArgs args) {
-            var response=args.GetProtocolOperationResponse<OperationResponse>().Message;
-            _asyncOperationsManager.ExecuteCallback(response.CallbackId, response);
+            var response=args.GetProtocolOperationResponse<OperationResponse>();
+            _asyncOperationsManager.ExecuteCallback(response.CallbackId, response.Message);
         }
 
         private void OnGatewayEventsListnerOnReceiveReady(object sender, SocketEventArgs args) {
-            var response=args.GetProtocolEvent<Event>().Message;
-            switch ((EventTypeCode)response.TypeAttributes[1]) {
+            var response=args.GetProtocolEvent<Event>();
+            var message=response.Message;
+            switch ((EventTypeCode)message.TypeAttributes[1]) {
                 //TODO: add events handling
-                case EventTypeCode.Peers:
-                case EventTypeCode.Ping:
+                case EventTypeCode.Peers: {
+                    if (response.Topic.StartsWith(GatewayOperationsTopic)) {
+                        var operationTopic=response.Topic.Replace(GatewayOperationsTopic, ""); // TODO : replace only first appearence
+                        OperationsPublisher publisher;
+                        if (_operationsPublishers.TryGetValue(operationTopic, out publisher)) {
+                            publisher.UpdateSubscriptions((EventPeers)message);
+                        }
+                    } else if (response.Topic.StartsWith(GatewayEventsTopic)) {
+                        //TODO: handle
+                    }
+                    break;
+                }
+                case EventTypeCode.Ping: {
+                    var request=new OperationPongRequest { Id=Id };
 
-                default:
-                break;
+                    GatewayOperationsExchange.SendProtocolOperationRequest(
+                        request,
+                        GatewayOperationsTopic,
+                        Id,
+                        _asyncOperationsManager.RegisterAsyncOperation(operationResponse => { }));
+                    break;
+                }
             }
         }
 
@@ -162,11 +175,12 @@ namespace MQCloud.Transport.Implementation {
             throw new NotImplementedException();
         }
 
-        public void UnSubscribeFromOperations(string topic) {
-            throw new NotImplementedException();
+        public bool UnSubscribeFromOperations(string topic) {
+            OperationCallback callback;
+            return _operationSubscribers.TryRemove(topic, out callback);
         }
 
-        public void UnSubscribeFromEvents(string topic) {
+        public bool UnSubscribeFromEvents(string topic) {
             throw new NotImplementedException();
         }
 
@@ -177,12 +191,21 @@ namespace MQCloud.Transport.Implementation {
             } else {
                 result=new OperationsPublisher(topic, Id, NetworkManager);
                 var request=new OperationGetOperationsPublisherRequest {
-                    Topic=topic,
-                    CallbackId=_asyncOperationsManager.RegisterAsyncOperation(
-                        response => result.SubscriobeToOperationsCallback(
-                            (OperationGetOperationsPublisherResponse)response))
+                    Topic=topic
                 };
-                GatewayOperationsExchange.SendProtocolOperationRequest(request, GatewayOperationsTopic, Id, request.CallbackId);
+                var callbackId=_asyncOperationsManager.RegisterAsyncOperation(
+                    response => {
+                        result.SubscriobeToOperationsCallback(
+                            (OperationGetOperationsPublisherResponse)response);
+                        var infoTopic=GatewayOperationsTopic+topic;
+                        GatewayEventsListner.Subscribe(infoTopic.ToByteArray()); // TODO: handle subscription latency issues
+                    });
+
+                GatewayOperationsExchange.SendProtocolOperationRequest(
+                    request,
+                    GatewayOperationsTopic,
+                    Id,
+                    callbackId);
                 _operationsPublishers.TryUpdate(topic, result, null);
             }
             return result;
@@ -196,11 +219,11 @@ namespace MQCloud.Transport.Implementation {
             } else {
                 result=new EventsPublisher(EventsPublisher, topic);
                 var request=new OperationSetEventsPublisherRequest {
-                    Topic=topic,
-                    CallbackId=_asyncOperationsManager.RegisterAsyncOperation(
-                        response => { })
+                    Topic=topic
                 };
-                GatewayOperationsExchange.SendProtocolOperationRequest(request, GatewayOperationsTopic, Id, request.CallbackId);
+                var callbackId=_asyncOperationsManager.RegisterAsyncOperation(
+                    response => { });
+                GatewayOperationsExchange.SendProtocolOperationRequest(request, GatewayOperationsTopic, Id, callbackId);
                 _eventsPublishers.TryUpdate(topic, result, null);
             }
             return result;

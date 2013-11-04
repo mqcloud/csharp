@@ -11,7 +11,7 @@ namespace MQCloud.Transport.Implementation {
     internal class OperationsPublisher : IOperationsPublisher {
         private readonly string _topic;
         private readonly string _senderId;
-
+        private ZmqSocket _socket;
         private readonly NetworkManager _networkManager;
         private readonly List<OperationPackageContext> _packets=new List<OperationPackageContext>();
         private readonly List<PendingOperationContext> _pendingOperations=new List<PendingOperationContext>();
@@ -81,20 +81,27 @@ namespace MQCloud.Transport.Implementation {
                 // TODO: handle exceptional case
                 return;
             }
-            var socket=_networkManager.CreateSocket(SocketType.DEALER);
-            context.Addresses.ForEach(socket.Connect); //TODO: make connections updatable
+            _socket = _networkManager.CreateSocket(SocketType.DEALER);
+            context.Addresses.ForEach(_socket.Connect); //TODO: make connections updatable
 
-            socket.SendReady+=OnResponse;
-            socket.ReceiveReady+=OnRequest;
+            _socket.SendReady+=OnResponse;
+            _socket.ReceiveReady+=OnRequest;
 
-            _poller=new Poller(new List<ZmqSocket> { socket });
+            _poller=new Poller(new List<ZmqSocket> { _socket });
 
             ThreadPool.QueueUserWorkItem(state => PoolerLoop());
         }
 
-        public OperationsPublisher(string topic, string _senderId, NetworkManager networkManager) {
+        public void UpdateSubscriptions(EventPeers context) // TODO: check if threadsafe
+        {
+            context.Added.ForEach(_socket.Connect);
+            context.Removed.ForEach(_socket.Disconnect);
+        }
+
+        public OperationsPublisher(string topic, string senderId, NetworkManager networkManager) {
             _topic=topic;
             _networkManager=networkManager;
+            _senderId = senderId;
             RemoveOutOfDateOperaqtionsTimer=new Timer(state => CleanUpLoop(), null, Informer.MinimalMessageTimeToLive, Informer.MinimalMessageTimeToLive);
         }
 

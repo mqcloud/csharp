@@ -1,7 +1,5 @@
-using System.IO;
 using MQCloud.Transport.Implementation;
 using MQCloud.Transport.Protocol;
-using ProtoBuf;
 using ZeroMQ;
 
 namespace MQCloud.Transport.Extensions {
