@@ -6,15 +6,26 @@ using MQCloud.Transport.Interface;
 using MQCloud.Transport.Protocol;
 using ZeroMQ;
 
-namespace MQCloud.Transport.Implementation
-{
-    internal class EventsSubscriptionController {
+namespace MQCloud.Transport.Implementation {
+    internal class EventsSubscriptionController : IDisposable {
+        private Poller _poller;
+        private ZmqSocket _socket;
+
+        public EventsSubscriptionController(EventCallback callback, NetworkManager networkManager, string topic) {
+            Callback=callback;
+            NetworkManager=networkManager;
+            Topic=topic;
+        }
+
         private EventCallback Callback { get; set; }
         private NetworkManager NetworkManager { get; set; }
         private string Topic { get; set; }
 
-        private Poller _poller;
-        private ZmqSocket _socket;
+        public void Dispose() {
+            _poller.Dispose();
+            _socket.Close();
+            _socket.Dispose();
+        }
 
         private void PoolerLoop() {
             var timspan=new TimeSpan(0, 0, 1);
@@ -28,12 +39,6 @@ namespace MQCloud.Transport.Implementation
             if (message.Topic.Equals(Topic)) {
                 Callback(message.Message);
             }
-        }
-
-        public EventsSubscriptionController(EventCallback callback, NetworkManager networkManager, string topic) {
-            Callback=callback;
-            NetworkManager=networkManager;
-            Topic=topic;
         }
 
         public void SubscriobeToEventsCallback(OperationGetEventsPublisherResponse operationResponse) {

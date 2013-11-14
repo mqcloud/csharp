@@ -1,6 +1,7 @@
 using System;
 
 namespace MQCloud.Transport.Exceptions {
+    [Serializable]
     public class ConnectionException : TransportException {
         public ConnectionException() { }
 

@@ -52,11 +52,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Extensions.cs" />
+    <Compile Include="Implementation\Configuration.cs" />
+    <Compile Include="Implementation\Connection.cs" />
+    <Compile Include="Implementation\NodeInformer.cs" />
+    <Compile Include="Implementation\NodesController.cs" />
+    <Compile Include="Implementation\PingSettings.cs" />
+    <Compile Include="Implementation\SocketExtensions.cs" />
+    <Compile Include="Implementation\SocketInformer.cs" />
+    <Compile Include="Implementation\TransportInformer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ZmqEventsTest.cs" />
-    <Compile Include="ZmqOperationsTest.cs" />
+    <Compile Include="Test\Extensions.cs" />
+    <Compile Include="Test\ZmqEventsTest.cs" />
+    <Compile Include="Test\ZmqOperationsTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

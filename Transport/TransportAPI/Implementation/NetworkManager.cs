@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using MQCloud.Transport.Exceptions;
 using ZeroMQ;
-using SocketType=ZeroMQ.SocketType;
+using SocketType = ZeroMQ.SocketType;
 
 namespace MQCloud.Transport.Implementation {
     internal class NetworkManager {
@@ -12,6 +12,14 @@ namespace MQCloud.Transport.Implementation {
 
         private readonly List<int> _occupiedPorts=new List<int>();
         private readonly List<ZmqSocket> _openedSockets=new List<ZmqSocket>();
+
+        public NetworkManager(int port = 5920, IPAddress address=null) {
+            if (address==null) {
+                address=Resolve();
+            }
+            Address=address;
+            _occupiedPorts.Add(--port);
+        }
 
         private IPAddress Address { get; set; }
 
@@ -27,13 +35,6 @@ namespace MQCloud.Transport.Implementation {
         private int GetFreePort() {
             _occupiedPorts.Add(_occupiedPorts.Last()+1);
             return _occupiedPorts.Last();
-        }
-
-        public NetworkManager(IPAddress address=null) {
-            if (address==null) {
-                address=Resolve();
-            }
-            Address=address;
         }
 
         public ZmqSocket CreateSocket(SocketType type) {
