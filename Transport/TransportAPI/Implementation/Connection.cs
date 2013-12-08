@@ -18,14 +18,16 @@ namespace MQCloud.Transport.Implementation {
         private readonly ConcurrentDictionary<string, OperationCallback> _operationSubscribers=new ConcurrentDictionary<string, OperationCallback>();
         private readonly ConcurrentDictionary<string, OperationsPublisher> _operationsPublishers=new ConcurrentDictionary<string, OperationsPublisher>();
 
-        public Connection(NetworkManager manager, string peerAdress) {
+        public Connection(NetworkManager manager, string applicationName, string peerAdress) {
             NetworkManager=manager;
+            ApplicationName = applicationName;
             PeerAddress=peerAdress;
             Id=Guid.NewGuid().ToString();
             Connect(peerAdress);
         }
 
         private NetworkManager NetworkManager { get; set; }
+        public string ApplicationName { get; set; }
         private string PeerAddress { get; set; }
 
         private ZmqSocket GatewayConnection { get; set; }
@@ -178,7 +180,7 @@ namespace MQCloud.Transport.Implementation {
                                                                Connect(response.Message);
             };
 
-            var request=new OperationGetBaseChannelsFacadeRequest();
+            var request = new OperationGetBaseChannelsFacadeRequest { ApplicationName = ApplicationName };
 
             GatewayConnection.SendProtocolOperationRequest(request, Informer.GatewayBaseDataTopic, Id, 0);
             _gatewayPoller.AddSocket(GatewayConnection);

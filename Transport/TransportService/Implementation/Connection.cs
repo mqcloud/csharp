@@ -20,54 +20,61 @@ namespace MQCloud.Transport.Service.Implementation {
 
         private void ReadConfiguation(string configureationFile) {
             try {
-                using (var fs = File.Open(configureationFile, FileMode.Open, FileAccess.Read)) {
-                    var serializer = new XmlSerializer(typeof(Configuration));
-                    _config = (Configuration)serializer.Deserialize(fs);
+                using ( var fs = File.Open( configureationFile, FileMode.Open, FileAccess.Read ) ) {
+                    var serializer = new XmlSerializer( typeof( Configuration ) );
+                    _config = (Configuration)serializer.Deserialize( fs );
                 }
-            } catch (FileNotFoundException) {
+            } catch ( FileNotFoundException ) {
                 _config = new Configuration();
 
-                var writer = new XmlSerializer(typeof(Configuration));
-                var file = new StreamWriter(configureationFile);
-                writer.Serialize(file, _config);
+                var writer = new XmlSerializer( typeof( Configuration ) );
+                var file = new StreamWriter( configureationFile );
+                writer.Serialize( file, _config );
                 file.Close();
             }
         }
 
         public Connection(NetworkManager networkManager, string configureationFile = "MQCloud.Transport.Service.config") {
             _networkManager = networkManager;
-            ReadConfiguation(configureationFile);
+            ReadConfiguation( configureationFile );
 
-            _nodesController = new NodesController(_networkManager, _config.PingSettings.Interval, _config.PingSettings.Policy);
+            _nodesController = new NodesController( _networkManager, _config.PingSettings.Interval, _config.PingSettings.Policy );
 
-            _gatewayInformer.Socket = _networkManager.CreateSocket(SocketType.ROUTER);
-            _gatewayInformer.Address = _networkManager.OpenSocket(_gatewayInformer.Socket);
+            _gatewayInformer.Socket = _networkManager.CreateSocket( SocketType.ROUTER );
+            _gatewayInformer.Address = _networkManager.OpenSocket( _gatewayInformer.Socket );
 
             _gatewayInformer.Socket.ReceiveReady +=
                 (sender, args) => {
                     var message = args.GetProtocolOperationRequest<OperationGetBaseChannelsFacadeRequest>();
-                    if (message.Topic.Equals(Informer.GatewayBaseDataTopic)) {
-                        var guid = Guid.NewGuid().ToString();
+                    var response = message.Message.GetResponse();
 
-                        _addresses.Add(guid);
-                        var response = new OperationGetBaseChannelsFacadeResponse {
-                            EventTopics = new List<string> { TransportInformer.GatewayPingChannalName },
-                            EventsAddress = _nodesController.EventsInformer.Address,
-                            OperationsAddress = _nodesController.OperationsInformer.Address,
-                            UserId = guid
-                        };
-                        args.Socket.SendProtocolOperationResponse(response, message.Topic, message.SenderId, message.CallbackId);
+                    if ( !message.Topic.Equals( Informer.GatewayBaseDataTopic ) ) {
+                        response.State = OperationStatusCode.OperationStatusCodeError;
+                        response.Error = "Wrong Topic!";
+                        args.Socket.SendProtocolOperationResponse(
+                            response, message.Topic, message.SenderId, message.CallbackId
+                        );
                     }
+
+                    var request = message.Message;
+                    var guid = string.Format( "{0}@{1}", Guid.NewGuid().ToString(), request.ApplicationName );
+
+                    _addresses.Add( guid );
+                    response.EventTopics = new List<string> { TransportInformer.GatewayPingChannalName };
+                    response.EventsAddress = _nodesController.EventsInformer.Address;
+                    response.OperationsAddress = _nodesController.OperationsInformer.Address;
+                    response.UserId = guid;
+                    args.Socket.SendProtocolOperationResponse( response, message.Topic, message.SenderId, message.CallbackId );
                 };
 
-            _pooler = new Poller(new List<ZmqSocket> { _gatewayInformer.Socket });
-            ThreadPool.QueueUserWorkItem(state => _pooler.PoolerLoop(new TimeSpan(0, 0, 1)));
+            _pooler = new Poller( new List<ZmqSocket> { _gatewayInformer.Socket } );
+            ThreadPool.QueueUserWorkItem( state => _pooler.PoolerLoop( new TimeSpan( 0, 0, 1 ) ) );
         }
 
         public void Dispose() {
             _pooler.Dispose();
 
-            _networkManager.FreeSocket(_gatewayInformer.Socket);
+            _networkManager.FreeSocket( _gatewayInformer.Socket );
             _gatewayInformer.Socket.Dispose();
         }
     }

@@ -6,24 +6,22 @@ using MQCloud.Transport.Interface;
 
 namespace MQCloud.Transport {
     public class ConnectionFactory : IConnectionFactory {
-        private readonly ConcurrentDictionary<string, NetworkManager> _networkManagers=new ConcurrentDictionary<string, NetworkManager>();
+        private readonly ConcurrentDictionary<string, NetworkManager> _networkManagers = new ConcurrentDictionary<string, NetworkManager>();
 
-        public IConnection GetConnection(string peerAddress, string hostAddress="", int hostPort=5920) {
+        public IConnection GetConnection(string applicationName, string peerAddress, string hostAddress = "", int hostPort = 5920) {
             NetworkManager networkManager;
-            if (_networkManagers.TryGetValue(hostAddress, out networkManager)) {
-
-            } else {
-                if (String.IsNullOrEmpty(hostAddress)&&hostAddress!=null) {
-                    var destination=IPAddress.Parse(hostAddress);
-                    networkManager=new NetworkManager(hostPort, destination);
+            if ( !_networkManagers.TryGetValue( hostAddress, out networkManager ) ) {
+                if ( String.IsNullOrEmpty( hostAddress ) && hostAddress != null ) {
+                    var destination = IPAddress.Parse( hostAddress );
+                    networkManager = new NetworkManager( hostPort, destination );
                 } else {
-                    networkManager=new NetworkManager(hostPort);
-
+                    networkManager = new NetworkManager( hostPort );
                 }
-                if (hostAddress!=null)
-                    _networkManagers.TryAdd(hostAddress, networkManager);
+                if ( hostAddress != null ) {
+                    _networkManagers.TryAdd( hostAddress, networkManager );
+                }
             }
-            return new Connection(networkManager, peerAddress);
+            return new Connection( networkManager, applicationName, peerAddress );
         }
     }
 }

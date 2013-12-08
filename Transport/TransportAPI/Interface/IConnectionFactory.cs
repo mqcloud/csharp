@@ -1,5 +1,5 @@
 namespace MQCloud.Transport.Interface {
     public interface IConnectionFactory {
-        IConnection GetConnection(string peerAddress, string hostAddress = "", int hostPort = 5920);
+        IConnection GetConnection(string applicationName, string peerAddress, string hostAddress = "", int hostPort = 5920);
     }
 }

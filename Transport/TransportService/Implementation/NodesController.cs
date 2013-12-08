@@ -29,8 +29,8 @@ namespace MQCloud.Transport.Service.Implementation {
             _pingTimer = new Timer(
                 state => {
                     lock (_nodes) {
-                        _nodes.ForEach(informer => ++informer.Counter);
-                        _nodes.RemoveAll(informer => informer.Counter > pingPolicy);
+                        _nodes.ForEach(informer => ++informer.PingFramesCallbackDelayCounter);
+                        _nodes.RemoveAll(informer => informer.PingFramesCallbackDelayCounter > pingPolicy);
                     }
 
                     EventsInformer.Socket
@@ -39,7 +39,7 @@ namespace MQCloud.Transport.Service.Implementation {
                 null,
                 (long)pingInterval,
                 pingInterval
-                );
+            );
 
             _pooler = new Poller(new List<ZmqSocket> { EventsInformer.Socket, OperationsInformer.Socket });
             ThreadPool.QueueUserWorkItem(state => _pooler.PoolerLoop(new TimeSpan(0, 0, 1)));

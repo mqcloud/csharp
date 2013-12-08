@@ -1,10 +1,9 @@
 ﻿using System;
-using System.IO;
-using MQCloud.Transport.Protocol.Utilities;
+using MQCloud.Transport.Implementation;
 using MQCloud.Transport.Service.Test;
+using Connection = MQCloud.Transport.Service.Implementation.Connection;
 
 namespace MQCloud.Transport.Service {
-
     /// <summary>
     /// TransportService aka Name Server aka Transport logic Gateway
     /// ============================================================
@@ -15,19 +14,15 @@ namespace MQCloud.Transport.Service {
     /// 
     /// </summary>
     internal class Program {
-        private static void TestProtocol() {
-            var schema = SchemaPrinter.Print();
-            Console.WriteLine(schema);
-            File.WriteAllText("TransportProtocol.proto", schema);
-        }
+
 
         public static void Main() {
             try {
-                TestProtocol();
-                //  ZmqEventsTest.TestZmqEvents();
-                ZmqOperationsTest.TestZmqOperations();
-            } catch (Exception e) {
-                Console.Write(e);
+                ProtocolGenerator.Save();
+
+                var conn = new Connection(new NetworkManager());
+            } catch ( Exception e ) {
+                Console.Write( e );
                 Console.ReadKey();
             }
         }
